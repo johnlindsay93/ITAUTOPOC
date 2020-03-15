@@ -1,0 +1,166 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+    VPC:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: 10.0.0.0/16
+            EnableDnsSupport: true
+            EnableDnsHostnames: true
+            InstanceTenancy: default
+        
+    InternetGateway:
+        Type: AWS::EC2::InternetGateway
+    
+    VPCGatewayAttachment:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            VpcId: !Ref VPC
+            InternetGatewayId: !Ref InternetGateway
+    SubnetA:
+        Type: AWS::EC2::Subnet
+        Properties:
+            AvailabilityZone: eu-west-1a
+            VpcId: !Ref VPC
+            CidrBlock: 10.0.1.0/24
+            MapPublicIpOnLaunch: true
+    SubnetB:
+        Type: AWS::EC2::Subnet
+        Properties:
+            AvailabilityZone: eu-west-1b
+            VpcId: !Ref VPC
+            CidrBlock: 10.0.2.0/24
+            MapPublicIpOnLaunch: true
+    SubnetC:
+        Type: AWS::EC2::Subnet
+        Properties:
+            AvailabilityZone: eu-west-1c
+            VpcId: !Ref VPC
+            CidrBlock: 10.0.3.0/24
+            MapPublicIpOnLaunch: true
+    
+    RouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref VPC
+    InternetRoute:
+        Type: AWS::EC2::Route
+        DependsOn: VPCGatewayAttachment
+        Properties:
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId: !Ref InternetGateway
+            RouteTableId: !Ref RouteTable
+    
+    SubnetARouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref RouteTable
+            SubnetId: !Ref SubnetA
+    SubnetBRouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref RouteTable
+            SubnetId: !Ref SubnetB
+    SubnetCRouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref RouteTable
+            SubnetId: !Ref SubnetC
+
+    SecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupName: "Internet Group"
+            GroupDescription: "SSH Traffic in, all traffic out"
+            VpcId: !Ref VPC
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: '22'
+                  ToPort: '22'
+                  CidrIp: 0.0.0.0/0
+            SecurityGroupEgress:
+                - IpProtocol: -1
+                  CidrIp: 0.0.0.0/0
+    
+    WebServers1:
+        Type: AWS::EC2::Instance
+        Properties:
+            AvailabilityZone: eu-west-1a
+            InstanceType: t2.micro
+            KeyName: CA1_Assignment
+            ImageId: ami-01f14919ba412de34
+            SubnetId: !Ref SubnetA
+            
+            
+    WebServers2:
+        Type: AWS::EC2::Instance
+        Properties:
+            AvailabilityZone: eu-west-1b
+            InstanceType: t2.micro
+            KeyName: CA1_Assignment
+            ImageId: ami-01f14919ba412de34
+            SubnetId: !Ref SubnetB
+            
+            
+    WebServers3:
+        Type: AWS::EC2::Instance
+        Properties:
+            AvailabilityZone: eu-west-1b
+            InstanceType: t2.micro
+            KeyName: CA1_Assignment
+            ImageId: ami-01f14919ba412de34
+            SubnetId: !Ref SubnetB
+            
+            
+    WebServers4:
+        Type: AWS::EC2::Instance
+        Properties:
+            AvailabilityZone: eu-west-1c
+            InstanceType: t2.micro
+            KeyName: CA1_Assignment
+            ImageId: ami-01f14919ba412de34
+            SubnetId: !Ref SubnetC
+            
+            
+    MgmtServer:
+        Type: AWS::EC2::Instance
+        Properties:
+            AvailabilityZone: eu-west-1a
+            InstanceType: t2.micro
+            KeyName: CA1_Assignment
+            ImageId: ami-02df9ea15c1778c9c
+            SubnetId: !Ref SubnetA
+            
+            UserData:
+                Fn::Base64: |
+                   #!/bin/bash
+                   sudo apt-get install software-properties-common -y
+                   sudo apt-add-repository ppa:ansible/ansible -y
+                   sudo apt-get update -y
+                   sudo apt-get install ansible -y
+                   sudo apt-get install awscli -y
+                   sudo apt install git-all -y
+    
+    LoadBalancer:
+        Type: AWS::ElasticLoadBalancing::LoadBalancer
+        Properties:
+            Subnets: 
+                - !Ref SubnetA
+                - !Ref SubnetB
+                - !Ref SubnetC
+            
+            Instances: 
+                - !Ref WebServers1
+                - !Ref WebServers2
+                - !Ref WebServers3
+                - !Ref WebServers4
+            Listeners: 
+                - LoadBalancerPort: '80'
+                  InstancePort: '80'
+                  Protocol: HTTP
+            HealthCheck:
+                Target: HTTP:80/
+                HealthyThreshold: '3'
+                UnhealthyThreshold: '5'
+                Interval: '30'
+                Timeout: '5'

@@ -1,0 +1,25 @@
+---
+
+   - name: "Building my webServers"
+     hosts: serverGroup1
+     become: yes
+     tasks:
+             - name: "Install  httpd"
+               shell: yum install httpd -y
+
+
+             - name: "Start httpd"
+               shell: service httpd start
+
+   - name: "Building my webServers"
+     hosts: serverGroup2
+     become: yes
+     tasks:
+             - name: "Install httpd"
+               shell: yum install httpd -y
+
+
+             - name: "Start httpd"
+               shell:  service httpd start
+
+

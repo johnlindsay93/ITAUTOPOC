@@ -1,0 +1,56 @@
+---
+
+   - name: "Building my playbook"
+     hosts: localhost
+     connection: local
+     tasks:
+             - name: "Pull from git"
+               git:
+                       repo: git@github.com:johnlindsay93/proofOfConcept.git
+                       dest: /home/ubuntu/proofOfConcept
+                       update: yes
+                       version: master
+   - name: "Stop httpd service"
+     hosts: serverGroup1
+     become: yes
+     tasks:
+             - name: "Stop httpd"
+               shell: service httpd stop
+
+
+   - name: "Copy over to web servers"
+     hosts: serverGroup1
+     tasks:
+             - name: "Copy git directory"
+               copy: "src={{ dir }} dest=/home/ec2-user"
+     vars:
+             dir: /home/ubuntu/proofOfConcept
+
+   - name: "Move index.html to /var/www/html/"
+     hosts: serverGroup1
+     become: yes
+     tasks:
+             - name: "Move index.html"
+               copy: "src={{ file }} dest=/var/www/html/"
+     vars:
+             file: /home/ubuntu/proofOfConcept/index.html
+
+   - name: "Update index.html"
+     hosts: serverGroup1
+     become: yes
+     tasks:
+             - name: "Append index.html"
+               blockinfile:
+                       path: /var/www/html/index.html
+                       marker: "<!-- ANSIBLE MANAGED BLOCK -->"
+                       insertafter: "<body>"
+                       block:
+                               <p>This is in serverGroup1</p>
+
+   - name: "Start httpd service"
+     hosts: serverGroup1
+     become: yes
+     tasks:
+             - name: "Start httpd"
+               shell: service httpd start
+
